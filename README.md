@@ -28,6 +28,7 @@
 | A8 | Tự bịa thêm trường hợp test không ai yêu cầu | Thấy 1 dòng quirk trong code → tự đẻ thành TC dù không có risk thật | Quirk → ghi RISK/ghi chú chờ dev xác nhận, KHÔNG thành TC |
 | A9 | Tự tạo thứ mới khi chưa được phép rồi phải gỡ | Tự tạo env var mới (`Nllb_legacy_*`) → vi phạm anti-var-bloat | Reuse biến `Nllb_` sẵn (pool owner/member/guest/bot — có cặp deviceId+uid); chỉ tạo khi đã hỏi |
 | A10 | Mang bộ test mẫu về dùng nhưng quên rà lại theo chuẩn | Clone reference nhưng giữ `to.have.status`, thiếu `responseTime`, tên không dấu | Clone xong PHẢI audit theo CLAUDE_NLLB (§4.1/§4.2/§8.1) ngay |
+| A11 | "Rà toàn bộ xem chỗ nào dính" → tự nới sang khu vực KHÔNG phải việc mình | NLLB nói "rà trong đống GROUP", tôi quét + sửa cả `Micro Service/Paypal` (folder ngoài task) → ĐÚNG collection nhưng SAI sub-scope, NLLB hoảng "sao tôi đụng Paypal". Khác C3 (sai collection) | "Toàn bộ" = toàn bộ **trong phạm vi được giao** (chỉ folder GROUP / chỉ KF của mình), KHÔNG phải cả collection. Liệt kê đúng tập folder trước khi sửa; folder lạ → bỏ qua + báo, đừng tự ý vá |
 
 ---
 
@@ -50,6 +51,7 @@
 | B13 | Tên tiêu đề viết hoa/thường nhạy cảm tuỳ máy chủ | Header case-sensitive (vd `X-Admin-Token`) → 401 dù có token | Dùng đúng y tên header như reference; 401 thì kiểm tên + giá trị token |
 | B14 | Chạy lẻ một phần, cấu hình chung không tự nạp | `--folder` từ cloud collection: collection-level var đôi khi không resolve → base_url thành literal `{{base_url}}` | Truyền biến qua `--env-var`/`--environment` thay vì dựa collection variable |
 | B15 | Dữ liệu test cần độc nhất mỗi lần chạy + dọn sạch | recordingIDLocal trùng giây → cùng record, đếm sai; để rác | localId unique theo mili-giây `new Date().getTime()` + teardown xóa data đã tạo |
+| B16 | Sửa 1 folder nhưng lưu đè cả collection → dễ giẫm việc người khác | Patch bằng `putCollection` (ghi đè NGUYÊN collection) cho 1 thay đổi nhỏ: re-save MỌI folder (Paypal/AppApi/KF khác) theo bản đã fetch → ai sửa tay xen giữa fetch↔PUT bị nuốt (lost-update), và dễ vô tình chạm folder ngoài scope | PUT theo **request/folderId** (`PUT collections/{CID}/requests/{RID}`, bỏ field server-managed) — chỉ ghi đúng item cần. Nếu buộc PUT cả collection: refetch ngay sát lúc PUT + chỉ đổi item trong folder của mình |
 
 ---
 
@@ -74,6 +76,7 @@
 | D2 | Chạy 1 lần thấy xanh đã tưởng chắc | "1 lần pass" ≠ deterministic; flaky lần sau rớt | Verify lặp 3-run/env; xanh ổn định mới tính done |
 | D3 | Không dọn dữ liệu nên lần sau bị nhiễu | Thiếu teardown → entity tích tụ qua các run, đếm sai | Mỗi test [Cleanup] bằng API delete chính thống cùng domain (KHÔNG xoá thẳng Firebase / fake flag) |
 | D4 | Đếm/so ngay sau thao tác cần thời gian xử lý | So sánh ngay sau async commit (send-gift contrib lag ~2.3s) → số chưa cập nhật | Poll-based recheck (`pm.sendRequest`+setTimeout) hoặc self-loop `setNextRequest` tới khi settle |
+| D5 | Run trước bị NGẮT giữa chừng để lại "lời mời/yêu cầu" sót → run sau rớt 1 case lạ | State sót (vd Firebase `roomUserScore/<room>/invites/<fb>` chưa clear) làm assertion recheck-NEGATIVE ("đã xoá") đỏ; thao tác chính (re-invite) VẪN success nên KHÔNG phải bug API | Khi 1 case fail sau khi đã pass: PROBE state thực tế (GQL+Firebase) TRƯỚC khi đào code; dọn leftover bằng API nghịch chính thống (DECLINE/cancel) rồi chạy lại; cân nhắc pre-clean ở [Setup] cho suite có invite/request |
 
 ---
 
